@@ -339,11 +339,12 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 			}
 		}
 		logger.LogError(c, common.LogText("responses stream failed after output was delivered, billing the delivered output: %s", streamErr.Error()))
+		statusCode := streamErr.MaskUpstream()
 		streamErr.SetMessage(common.MessageWithRequestId(streamErr.Error(), c.GetString(common.RequestIdKey)))
 		if info.RelayFormat == types.RelayFormatClaude {
-			c.JSON(streamErr.StatusCode, gin.H{"type": "error", "error": streamErr.ToClaudeError()})
+			c.JSON(statusCode, gin.H{"type": "error", "error": streamErr.ToClaudeError()})
 		} else {
-			c.JSON(streamErr.StatusCode, gin.H{"error": streamErr.ToOpenAIError()})
+			c.JSON(statusCode, gin.H{"error": streamErr.ToOpenAIError()})
 		}
 		return usage, nil
 	}

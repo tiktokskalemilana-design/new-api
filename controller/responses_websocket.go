@@ -122,6 +122,7 @@ func ResponsesWebSocket(c *gin.Context) {
 
 	if apiError := relay.ResponsesWebSocketHelper(c, ws, runner); apiError != nil {
 		logger.LogError(c, common.LogText("responses websocket relay error: %s", common.LocalLogPreview(apiError.Error())))
+		apiError.MaskUpstream()
 		apiError.SetMessage(common.MessageWithRequestId(apiError.Error(), requestID))
 		helper.WssError(c, ws, apiError.ToOpenAIError())
 	}

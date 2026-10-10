@@ -177,6 +177,39 @@ func (e *NewAPIError) SetMessage(message string) {
 	e.Err = errors.New(message)
 }
 
+// IsUpstreamError reports whether the error originated from the upstream LLM
+// provider (or the network path to it), as opposed to an internal new-api error.
+func (e *NewAPIError) IsUpstreamError() bool {
+	if e == nil {
+		return false
+	}
+	return e.errorType == ErrorTypeOpenAIError || e.errorType == ErrorTypeUpstreamError
+}
+
+// MaskUpstream hides upstream/provider error details from the client.
+// Upstream errors are replaced with a generic 503 "Service Temporarily Unavailable".
+// Returns the status code to use in the response. Idempotent.
+func (e *NewAPIError) MaskUpstream() (statusCode int) {
+	if e == nil {
+		return http.StatusOK
+	}
+	if !e.IsUpstreamError() {
+		return e.StatusCode
+	}
+	if e.errorCode == ErrorCode("upstream_unavailable") {
+		return e.StatusCode
+	}
+	e.Err = errors.New("Service Temporarily Unavailable")
+	e.errorCode = ErrorCode("upstream_unavailable")
+	e.StatusCode = http.StatusServiceUnavailable
+	e.RelayError = OpenAIError{
+		Message: "Service Temporarily Unavailable",
+		Type:    "service_unavailable",
+		Code:    e.errorCode,
+	}
+	return e.StatusCode
+}
+
 func (e *NewAPIError) ToOpenAIError() OpenAIError {
 	var result OpenAIError
 	switch e.errorType {
