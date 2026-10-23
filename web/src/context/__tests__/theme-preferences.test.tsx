@@ -29,7 +29,6 @@ import { initializeFrontendCache } from '@/lib/frontend-cache'
 
 const savedPreferences = {
   'newapi:theme:v1:mode': 'dark',
-  'newapi:theme:v1:preset': 'rose-garden',
   'newapi:theme:v1:font': 'serif',
   'newapi:theme:v1:radius': 'lg',
   'newapi:theme:v1:scale': 'sm',
@@ -47,7 +46,6 @@ function ThemeControls() {
         type='button'
         onClick={() => {
           theme.setTheme('dark')
-          customization.setPreset('rose-garden')
           customization.setFont('serif')
           customization.setRadius('lg')
           customization.setScale('sm')
@@ -99,12 +97,11 @@ afterEach(() => {
 
 describe('theme preference persistence', () => {
   it('starts with defaults when only shared legacy theme cookies exist', () => {
-    document.cookie = 'theme_preset=ocean-breeze; path=/'
-    document.cookie = 'vite-ui-theme=dark; path=/'
     document.cookie = 'theme_font=serif; path=/'
     document.cookie = 'theme_radius=xl; path=/'
     document.cookie = 'theme_scale=lg; path=/'
     document.cookie = 'theme_content_layout=centered; path=/'
+    document.cookie = 'vite-ui-theme=dark; path=/'
 
     render(<ThemeFixture />)
 
@@ -127,7 +124,7 @@ describe('theme preference persistence', () => {
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('dark')
     expect(document.documentElement).toHaveClass('dark')
-    expect(document.body).toHaveAttribute('data-theme-preset', 'rose-garden')
+    expect(document.body).not.toHaveAttribute('data-theme-preset')
     expect(document.body).toHaveAttribute('data-theme-font', 'serif')
     expect(document.body).toHaveAttribute('data-theme-radius', 'lg')
     expect(document.body).toHaveAttribute('data-theme-scale', 'sm')
@@ -141,12 +138,12 @@ describe('theme preference persistence', () => {
     expect(document.cookie).toBe('')
   })
 
-  it('keeps a reset after remounting even when the legacy ocean cookie remains', async () => {
+  it('keeps a reset after remounting even when a legacy preset cookie remains', async () => {
     for (const [key, value] of Object.entries(savedPreferences)) {
       localStorage.setItem(key, value)
     }
     localStorage.setItem('unrelated-preference', 'keep')
-    document.cookie = 'theme_preset=ocean-breeze; path=/'
+    document.cookie = 'theme_preset=rose-garden; path=/'
     const user = userEvent.setup()
     const first = render(<ThemeFixture />)
 
@@ -165,7 +162,21 @@ describe('theme preference persistence', () => {
       expect(localStorage.getItem(key)).toBeNull()
     }
     expect(localStorage.getItem('unrelated-preference')).toBe('keep')
-    expect(document.cookie).toContain('theme_preset=ocean-breeze')
+    expect(document.cookie).toContain('theme_preset=rose-garden')
+  })
+
+  it('falls back to the default palette when a removed preset was saved before', () => {
+    // Users who picked a retired preset (e.g. rose-garden) keep it in
+    // localStorage. The provider validates against the live registry, so the
+    // stale value resolves to the default palette instead of crashing.
+    localStorage.setItem('newapi:theme:v1:preset', 'rose-garden')
+    localStorage.setItem('newapi:theme:v1:mode', 'dark')
+
+    render(<ThemeFixture />)
+
+    expect(screen.getByLabelText('Theme mode')).toHaveTextContent('dark')
+    expect(document.documentElement).toHaveClass('dark')
+    expect(document.body).not.toHaveAttribute('data-theme-preset')
   })
 
   it.each(['', 'unknown'])(
@@ -210,7 +221,7 @@ describe('theme preference persistence', () => {
     await user.click(screen.getByRole('button', { name: 'Customize' }))
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('dark')
-    expect(document.body).toHaveAttribute('data-theme-preset', 'rose-garden')
+    expect(document.body).not.toHaveAttribute('data-theme-preset')
 
     await user.click(screen.getByRole('button', { name: 'Reset' }))
 
@@ -229,7 +240,7 @@ describe('theme preference persistence', () => {
     render(<ThemeFixture />)
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('dark')
-    expect(document.body).toHaveAttribute('data-theme-preset', 'rose-garden')
+    expect(document.body).not.toHaveAttribute('data-theme-preset')
     for (const [key, value] of Object.entries(savedPreferences)) {
       expect(localStorage.getItem(key)).toBe(value)
     }
