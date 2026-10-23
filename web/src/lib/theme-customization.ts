@@ -26,11 +26,12 @@ For commercial licensing, please contact support@quantumnous.com
 export const THEME_PRESETS = [
   {
     // Obsidian is the single shipped palette: it IS the `:root`/`.dark`
-    // default in theme.css, so the preset carries no color overrides of its
-    // own. Swatches preview the graphite-canvas → indigo-accent pairing.
+    // default in theme.css. ikh-style monochrome — pure zinc dark canvas,
+    // white-on-black primary, color only in semantic states. Swatches
+    // preview the near-black canvas → white accent pairing.
     value: 'default',
     name: 'Obsidian',
-    swatches: ['oklch(0.19 0.005 272)', 'oklch(0.66 0.19 268)'],
+    swatches: ['oklch(0.145 0 0)', 'oklch(0.985 0 0)'],
   },
 ] as const
 
