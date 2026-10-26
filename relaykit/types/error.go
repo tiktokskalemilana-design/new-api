@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
@@ -164,7 +165,7 @@ func (e *NewAPIError) MaskSensitiveError() string {
 	if e.errorCode == ErrorCodeCountTokenFailed {
 		return errStr
 	}
-	return kitutil.MaskSensitiveInfo(errStr)
+	return ScrubProviderLinks(kitutil.MaskSensitiveInfo(errStr))
 }
 
 func (e *NewAPIError) MaskSensitiveErrorWithStatusCode() string {
@@ -257,7 +258,26 @@ func ClientSafeErrorMessage(err error) string {
 	if errors.As(err, &apiErr) && apiErr.IsUpstreamError() {
 		return UpstreamMaskedMessage
 	}
-	return kitutil.MaskSensitiveInfo(err.Error())
+	return ScrubProviderLinks(kitutil.MaskSensitiveInfo(err.Error()))
+}
+
+var (
+	scrubTelegramLinkPattern = regexp.MustCompile(`(?i)(?:https?://)?(?:www\.)?(?:t\.me|telegram\.me|telegram\.dog)/[^\s"'<>]*`)
+	scrubHTTPLinkPattern     = regexp.MustCompile(`(?i)https?://[^\s"'<>]+`)
+	scrubHandlePattern       = regexp.MustCompile(`@[a-zA-Z][a-zA-Z0-9_]{2,31}\b`)
+)
+
+// ScrubProviderLinks removes anything that can point clients at a third-party
+// provider, support channel or operator: http(s) links, Telegram links and
+// @handles. Applied to every client-facing error message.
+func ScrubProviderLinks(s string) string {
+	if s == "" {
+		return s
+	}
+	s = scrubTelegramLinkPattern.ReplaceAllString(s, "[link hidden]")
+	s = scrubHTTPLinkPattern.ReplaceAllString(s, "[link hidden]")
+	s = scrubHandlePattern.ReplaceAllString(s, "[contact hidden]")
+	return s
 }
 
 func (e *NewAPIError) ToOpenAIError() OpenAIError {
@@ -287,6 +307,7 @@ func (e *NewAPIError) ToOpenAIError() OpenAIError {
 	if e.errorCode != ErrorCodeCountTokenFailed {
 		result.Message = kitutil.MaskSensitiveInfo(result.Message)
 	}
+	result.Message = ScrubProviderLinks(result.Message)
 	if result.Message == "" {
 		result.Message = string(e.errorType)
 	}
@@ -316,6 +337,7 @@ func (e *NewAPIError) ToClaudeError() ClaudeError {
 	if e.errorCode != ErrorCodeCountTokenFailed {
 		result.Message = kitutil.MaskSensitiveInfo(result.Message)
 	}
+	result.Message = ScrubProviderLinks(result.Message)
 	if result.Message == "" {
 		result.Message = string(e.errorType)
 	}

@@ -956,8 +956,7 @@ func TestResponsesStreamOutcomesPreserveAccounting(t *testing.T) {
 					// compare the terminal data line semantically (key order is
 					// not stable after sanitization re-marshals the frame)
 					var gotTerminal string
-					for _, line := range strings.Split(string(body), "
-") {
+					for _, line := range strings.Split(string(body), "\n") {
 						if strings.HasPrefix(line, "data: ") {
 							gotTerminal = strings.TrimPrefix(line, "data: ")
 						}

@@ -814,6 +814,7 @@ func respondTaskError(c *gin.Context, taskErr *taskdto.TaskError) {
 	if taskErr.StatusCode == http.StatusTooManyRequests {
 		taskErr.Message = i18n.T(c, i18n.MsgRelayGroupUpstreamSaturated)
 	}
+	taskErr.Message = types.ScrubProviderLinks(taskErr.Message)
 	c.JSON(taskErr.StatusCode, taskErr)
 }
 

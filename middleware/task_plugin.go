@@ -1249,7 +1249,7 @@ func RespondTaskPluginError(c *gin.Context, taskErr *dto.TaskError) bool {
 	if !exists || !ok || pinned.Plugin == nil {
 		return false
 	}
-	sanitized := sanitizedTaskPluginError(taskErr.StatusCode, taskErr.Message)
+	sanitized := sanitizedTaskPluginError(taskErr.StatusCode, types.ScrubProviderLinks(taskErr.Message))
 	requestID := c.GetString(common.RequestIdKey)
 	hasRenderer, err := pinned.Plugin.Engine.HasCallablePath(c.Request.Context(), "native", "error")
 	requestValue, exists := c.Get(pluginruntime.ContextKeyRouteRequest)

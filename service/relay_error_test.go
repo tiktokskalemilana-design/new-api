@@ -117,7 +117,7 @@ func TestProcessChannelErrorMasksDisableReasonAndNotification(t *testing.T) {
 	loaded, err := model.GetChannelById(channel.Id, true)
 	require.NoError(t, err)
 	assert.Equal(t, common.ChannelStatusAutoDisabled, loaded.Status)
-	wantReason := "status_code=401, upstream https://***.com/***?token=*** api_key:***"
+	wantReason := "status_code=401, upstream [link hidden] api_key:***"
 	assert.Equal(t, wantReason, loaded.GetOtherInfo()["status_reason"])
 	assert.Contains(t, notification.Content, wantReason)
 	assert.NotContains(t, notification.Content, "review-token")
