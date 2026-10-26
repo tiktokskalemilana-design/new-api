@@ -150,6 +150,11 @@ func OpenaiImageStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp 
 			// Record the error as a soft error; the scanner drives the final
 			// EndReason. HasErrors() flags the failure for logging/handling.
 			sr.Error(fmt.Errorf("%s", extractOpenAIImageStreamErrorMessage(raw)))
+			// Never forward provider error details to the client.
+			if sanitized, ok := helper.SanitizeUpstreamErrorPayload(raw); ok {
+				raw = sanitized
+				data = string(sanitized)
+			}
 		}
 		var chunk struct {
 			Type  string    `json:"type"`

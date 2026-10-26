@@ -110,7 +110,7 @@ func GeminiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, r
 		return true
 	}
 	failResponsesStream := func(err error) bool {
-		failureResults, handled := state.FailResponsesStream("server_error", err.Error(), "")
+		failureResults, handled := state.FailResponsesStream("server_error", types.ClientSafeErrorMessage(err), "")
 		if !handled {
 			return false
 		}

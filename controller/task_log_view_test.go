@@ -6,6 +6,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -105,7 +106,7 @@ func TestTaskLogDTOReplacesLegacyVideoURLWithAvailabilityFlag(t *testing.T) {
 	assert.Contains(t, string(encoded), "legacy_video_available")
 }
 
-func TestTaskLogDTOKeepsFailureReasonAndDoesNotMarkPluginTaskLegacy(t *testing.T) {
+func TestTaskLogDTOMasksFailureReasonAndDoesNotMarkPluginTaskLegacy(t *testing.T) {
 	failed := &model.Task{
 		TaskID:     "task_failed",
 		Platform:   "jimeng",
@@ -114,7 +115,8 @@ func TestTaskLogDTOKeepsFailureReasonAndDoesNotMarkPluginTaskLegacy(t *testing.T
 		FailReason: "provider rejected the request",
 	}
 	failedView := tasksToDto([]*model.Task{failed}, false, common.RoleCommonUser)[0]
-	assert.Equal(t, "provider rejected the request", failedView.FailReason)
+	// upstream failure reasons are masked: provider details never reach clients
+	assert.Equal(t, service.MaskedTaskFailReason, failedView.FailReason)
 	assert.False(t, failedView.LegacyVideoAvailable)
 
 	pluginTask := &model.Task{

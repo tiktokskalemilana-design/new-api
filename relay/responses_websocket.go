@@ -186,8 +186,13 @@ func (s *responsesWSSession) runRequest(state *responsesWSCallState, message []b
 		// the current request's release; socket close needs neither lock.
 		outgoing := state.terminal
 		if apiErr != nil {
+			apiErr.MaskUpstream()
 			if body, err := buildResponsesWSErrorPayload(envelope.EventID, streamID, apiErr); err == nil {
 				outgoing = &responsesWSMessage{kind: websocket.TextMessage, body: body}
+			}
+		} else if outgoing != nil && outgoing.kind == websocket.TextMessage {
+			if sanitized, isErr := helper.SanitizeUpstreamErrorPayload(outgoing.body); isErr {
+				outgoing = &responsesWSMessage{kind: outgoing.kind, body: sanitized}
 			}
 		}
 		s.clientWriteMu.Lock()
@@ -389,7 +394,7 @@ func (s *responsesWSSession) runCall(c *gin.Context, state *responsesWSCallState
 				info.StreamStatus.RecordError("invalid upstream websocket event")
 			} else {
 				if event.Type != "error" && event.StreamID != "" && event.StreamID != create.StreamID {
-					if err := s.writeClient(incoming.kind, incoming.body); err != nil {
+					if err := s.writeUpstreamToClient(incoming.kind, incoming.body); err != nil {
 						s.shutdown()
 					}
 					continue
@@ -407,7 +412,7 @@ func (s *responsesWSSession) runCall(c *gin.Context, state *responsesWSCallState
 					}
 					terminal, ambiguous, controlError := responsesWSErrorEndsRequest(rejection, create.StreamID, responseID, sentControl)
 					if !terminal {
-						if err := s.writeClient(incoming.kind, incoming.body); err != nil {
+						if err := s.writeUpstreamToClient(incoming.kind, incoming.body); err != nil {
 							s.shutdown()
 						}
 						// Only a control error in this stream resolves its pending control.
@@ -464,7 +469,7 @@ func (s *responsesWSSession) runCall(c *gin.Context, state *responsesWSCallState
 				ConsumeResponsesQuota(c, info, accumulator.Finish())
 				return nil
 			}
-			if err := s.writeClient(incoming.kind, incoming.body); err != nil {
+			if err := s.writeUpstreamToClient(incoming.kind, incoming.body); err != nil {
 				s.shutdown()
 			}
 			if accepted && pendingControl != nil {
@@ -628,7 +633,7 @@ func (s *responsesWSSession) startTargetReader(target *websocket.Conn) {
 				case state.inbox <- incoming:
 				case <-state.done:
 					if err == nil {
-						if writeErr := s.writeClient(kind, body); writeErr != nil {
+						if writeErr := s.writeUpstreamToClient(kind, body); writeErr != nil {
 							s.shutdown()
 							return
 						}
@@ -639,7 +644,7 @@ func (s *responsesWSSession) startTargetReader(target *websocket.Conn) {
 					return
 				}
 			} else if err == nil {
-				if writeErr := s.writeClient(kind, body); writeErr != nil {
+				if writeErr := s.writeUpstreamToClient(kind, body); writeErr != nil {
 					s.shutdown()
 					return
 				}
@@ -706,6 +711,17 @@ func (s *responsesWSSession) writeClient(kind int, message []byte) error {
 		return err
 	}
 	return s.client.WriteMessage(kind, message)
+}
+
+// writeUpstreamToClient forwards a raw frame received from the upstream
+// provider, sanitizing any embedded provider error details first.
+func (s *responsesWSSession) writeUpstreamToClient(kind int, message []byte) error {
+	if kind == websocket.TextMessage {
+		if sanitized, isErr := helper.SanitizeUpstreamErrorPayload(message); isErr {
+			message = sanitized
+		}
+	}
+	return s.writeClient(kind, message)
 }
 
 func (s *responsesWSSession) sendError(eventID, streamID string, apiErr *types.NewAPIError) {

@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -224,4 +225,77 @@ func GenerateFinalUsageResponse(id string, createAt int64, model string, usage d
 		Choices:           make([]dto.ChatCompletionsStreamResponseChoice, 0),
 		Usage:             &usage,
 	}
+}
+
+// SanitizeUpstreamErrorPayload rewrites a client-bound SSE/WS JSON payload that
+// carries an upstream provider error: provider details (message, code, type,
+// metadata) are replaced with a generic "Service Temporarily Unavailable"
+// error, so no third-party channel information ever reaches the client.
+//
+// A payload is considered an upstream error when it has a top-level "error"
+// object, or a type of "error"/"response.failed". Payloads that do not match
+// are returned unchanged. Returns (possibly rewritten payload, wasError).
+func SanitizeUpstreamErrorPayload(data []byte) ([]byte, bool) {
+	var probe struct {
+		Type     string          `json:"type"`
+		Error    json.RawMessage `json:"error"`
+		Response *struct {
+			Status string `json:"status"`
+		} `json:"response"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return data, false
+	}
+	hasErrorObject := len(probe.Error) > 0 && string(probe.Error) != "null"
+	failedResponse := probe.Response != nil && probe.Response.Status == "failed"
+	if !hasErrorObject && !failedResponse && probe.Type != "error" && probe.Type != "response.failed" {
+		return data, false
+	}
+	var frame map[string]json.RawMessage
+	if err := json.Unmarshal(data, &frame); err != nil {
+		return data, false
+	}
+	genericError, _ := json.Marshal(map[string]any{
+		"type":    string(types.ErrorCodeUpstreamUnavailable),
+		"code":    string(types.ErrorCodeUpstreamUnavailable),
+		"message": types.UpstreamMaskedMessage,
+	})
+	// Rebuild the frame with an allowlist: everything else (message, code,
+	// param, status_details, provider metadata) can leak provider details.
+	clean := map[string]json.RawMessage{"error": genericError}
+	if t, ok := frame["type"]; ok {
+		clean["type"] = t
+	} else {
+		clean["type"] = json.RawMessage(`"error"`)
+	}
+	for _, k := range []string{"response_id", "stream_id", "event_id", "sequence_number"} {
+		if v, ok := frame[k]; ok {
+			clean[k] = v
+		}
+	}
+	if _, ok := frame["status"]; ok {
+		clean["status"] = json.RawMessage("503")
+	}
+	if failedResponse || probe.Type == "response.failed" {
+		if rawResp, ok := frame["response"]; ok {
+			var respMap map[string]json.RawMessage
+			if err := json.Unmarshal(rawResp, &respMap); err == nil {
+				keep := map[string]json.RawMessage{}
+				for _, k := range []string{"id", "status", "usage"} {
+					if v, ok := respMap[k]; ok {
+						keep[k] = v
+					}
+				}
+				keep["error"] = genericError
+				if outResp, err := json.Marshal(keep); err == nil {
+					clean["response"] = outResp
+				}
+			}
+		}
+	}
+	out, err := json.Marshal(clean)
+	if err != nil {
+		return data, false
+	}
+	return out, true
 }

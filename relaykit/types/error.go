@@ -85,7 +85,15 @@ const (
 	// quota error
 	ErrorCodeInsufficientUserQuota      ErrorCode = "insufficient_user_quota"
 	ErrorCodePreConsumeTokenQuotaFailed ErrorCode = "pre_consume_token_quota_failed"
+
+	// masked upstream error: the only code clients ever see for provider failures
+	ErrorCodeUpstreamUnavailable ErrorCode = "service_unavailable"
 )
+
+// UpstreamMaskedMessage is the only message clients ever see for errors that
+// originate from an upstream provider/channel. Provider details, status codes,
+// rate-limit info and upstream URLs must never leak to API clients.
+const UpstreamMaskedMessage = "Service Temporarily Unavailable"
 
 type NewAPIError struct {
 	Err            error
@@ -179,11 +187,36 @@ func (e *NewAPIError) SetMessage(message string) {
 
 // IsUpstreamError reports whether the error originated from the upstream LLM
 // provider (or the network path to it), as opposed to an internal new-api error.
+//
+// Anything that is not provably an internal new-api error is treated as
+// upstream: provider-typed errors (openai_error/claude_error/...), channel
+// errors, and internal wrappers whose message embeds an upstream response
+// (failed request, bad upstream status/body, upstream moderation, ...).
 func (e *NewAPIError) IsUpstreamError() bool {
 	if e == nil {
 		return false
 	}
-	return e.errorType == ErrorTypeOpenAIError || e.errorType == ErrorTypeUpstreamError
+	if e.errorType != ErrorTypeNewAPIError {
+		return true
+	}
+	if IsChannelError(e) {
+		return true
+	}
+	switch e.errorCode {
+	case ErrorCodeDoRequestFailed,
+		ErrorCodeReadResponseBodyFailed,
+		ErrorCodeBadResponseStatusCode,
+		ErrorCodeBadResponse,
+		ErrorCodeBadResponseBody,
+		ErrorCodeEmptyResponse,
+		ErrorCodeAwsInvokeError,
+		ErrorCodeModelNotFound,
+		ErrorCodePromptBlocked,
+		ErrorCodeSensitiveWordsDetected,
+		ErrorCodeUpstreamUnavailable:
+		return true
+	}
+	return false
 }
 
 // MaskUpstream hides upstream/provider error details from the client.
@@ -196,18 +229,35 @@ func (e *NewAPIError) MaskUpstream() (statusCode int) {
 	if !e.IsUpstreamError() {
 		return e.StatusCode
 	}
-	if e.errorCode == ErrorCode("upstream_unavailable") {
+	if e.errorCode == ErrorCodeUpstreamUnavailable {
 		return e.StatusCode
 	}
-	e.Err = errors.New("Service Temporarily Unavailable")
-	e.errorCode = ErrorCode("upstream_unavailable")
+	e.Err = errors.New(UpstreamMaskedMessage)
+	e.errorCode = ErrorCodeUpstreamUnavailable
+	e.errorType = ErrorTypeOpenAIError
 	e.StatusCode = http.StatusServiceUnavailable
+	e.Metadata = nil
 	e.RelayError = OpenAIError{
-		Message: "Service Temporarily Unavailable",
-		Type:    "service_unavailable",
-		Code:    e.errorCode,
+		Message: UpstreamMaskedMessage,
+		Type:    string(ErrorCodeUpstreamUnavailable),
+		Code:    string(ErrorCodeUpstreamUnavailable),
 	}
 	return e.StatusCode
+}
+
+// ClientSafeErrorMessage returns a message that is safe to embed into
+// client-facing payloads (e.g. mid-stream terminal error events): upstream
+// errors collapse to the generic masked message, everything else is stripped
+// of sensitive internals (URLs, keys) but keeps its meaning.
+func ClientSafeErrorMessage(err error) string {
+	if err == nil {
+		return UpstreamMaskedMessage
+	}
+	var apiErr *NewAPIError
+	if errors.As(err, &apiErr) && apiErr.IsUpstreamError() {
+		return UpstreamMaskedMessage
+	}
+	return kitutil.MaskSensitiveInfo(err.Error())
 }
 
 func (e *NewAPIError) ToOpenAIError() OpenAIError {

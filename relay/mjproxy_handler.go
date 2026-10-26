@@ -19,6 +19,7 @@ import (
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
+	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
@@ -77,8 +78,9 @@ func RelayMidjourneyImage(c *gin.Context) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
-		c.JSON(resp.StatusCode, gin.H{
-			"error": string(responseBody),
+		logger.LogError(c, common.LogText("mj image proxy upstream error (status %d): %s", resp.StatusCode, common.LocalLogPreview(string(responseBody))))
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": types.UpstreamMaskedMessage,
 		})
 		return
 	}
@@ -162,7 +164,7 @@ func coverMidjourneyTaskDto(c *gin.Context, originTask *model.Midjourney) (midjo
 		midjourneyTask.VideoUrl = originTask.VideoUrl
 	}
 	midjourneyTask.Status = originTask.Status
-	midjourneyTask.FailReason = originTask.FailReason
+	midjourneyTask.FailReason = service.MaskTaskFailReason(originTask.FailReason)
 	midjourneyTask.Action = originTask.Action
 	midjourneyTask.Description = originTask.Description
 	midjourneyTask.Prompt = originTask.Prompt
@@ -296,6 +298,11 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 		})
 		model.UpdateUserUsedQuotaAndRequestCount(info.UserId, midjourneyTask.Quota)
 		model.UpdateChannelUsedQuota(billingChannelId, midjourneyTask.Quota)
+	}
+	if mjResp.StatusCode >= 400 || (midjResponse.Code != 1 && midjResponse.Code != 21 && midjResponse.Code != 22) {
+		// Never leak upstream channel/provider error details to clients.
+		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 4, "description": types.UpstreamMaskedMessage, "result": ""})
+		return nil
 	}
 	c.Writer.WriteHeader(mjResp.StatusCode)
 	respBody, err := common.Marshal(midjResponse)
@@ -598,7 +605,7 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	}
 	if midjResponse.Code != 1 && midjResponse.Code != 21 && midjResponse.Code != 22 {
 		//非1-提交成功,21-任务已存在和22-排队中，则记录错误原因
-		midjourneyTask.FailReason = midjResponse.Description
+		midjourneyTask.FailReason = service.MaskTaskFailReason(midjResponse.Description)
 		consumeQuota = false
 	}
 
@@ -677,6 +684,11 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 		model.UpdateChannelUsedQuota(billingChannelId, midjourneyTask.Quota)
 	}
 
+	if midjResponseWithStatus.StatusCode >= 400 || (midjResponse.Code != 1 && midjResponse.Code != 21 && midjResponse.Code != 22) {
+		// Never leak upstream channel/provider error details to clients.
+		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 4, "description": types.UpstreamMaskedMessage, "result": ""})
+		return nil
+	}
 	if midjResponse.Code == 22 { //22-排队中，说明任务已存在
 		//修改返回值
 		newBody := strings.Replace(string(responseBody), `"code":22`, `"code":1`, -1)

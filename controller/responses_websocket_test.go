@@ -790,7 +790,8 @@ func TestResponsesWebSocketCancelErrorDoesNotFinishActiveRequest(t *testing.T) {
 	assert.Equal(t, "response.created", readResponsesWSTestEvent(t, fixture.client)["type"])
 	cancelError := readResponsesWSTestEvent(t, fixture.client)
 	assert.Equal(t, "error", cancelError["type"])
-	assert.Equal(t, float64(http.StatusBadRequest), cancelError["status"])
+	// upstream error frames are masked: provider details never reach the client
+	assert.Equal(t, float64(http.StatusServiceUnavailable), cancelError["status"])
 	require.NoError(t, fixture.client.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.create","model":"ws-billing","input":"overlapping","stream_id":"other","event_id":"busy"}`)))
 	conflict := readResponsesWSTestEvent(t, fixture.client)
 	assert.Equal(t, "error", conflict["type"])
@@ -808,9 +809,9 @@ func TestResponsesWebSocketInitialUpstreamRejectionRefundsReservation(t *testing
 		name, upstream, wantType, wantMessage string
 		status                                int
 	}{
-		{name: "structured error", upstream: `{"type":"error","response_id":"rejected","status":400,"error":{"type":"invalid_request_error","code":"invalid_input","message":"Invalid input"}}`, status: http.StatusBadRequest, wantType: "invalid_request_error", wantMessage: "Invalid input"},
+		{name: "structured error", upstream: `{"type":"error","response_id":"rejected","status":400,"error":{"type":"invalid_request_error","code":"invalid_input","message":"Invalid input"}}`, status: http.StatusServiceUnavailable, wantType: "service_unavailable", wantMessage: "Service Temporarily Unavailable"},
 		// A frame without an error object is still reported as a request error.
-		{name: "bare error", upstream: `{"type":"error","status":500,"message":"upstream rejected"}`, status: http.StatusInternalServerError, wantType: "invalid_request_error", wantMessage: "upstream rejected"},
+		{name: "bare error", upstream: `{"type":"error","status":500,"message":"upstream rejected"}`, status: http.StatusServiceUnavailable, wantType: "service_unavailable", wantMessage: "Service Temporarily Unavailable"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			preConsumed := make(chan int, 1)
@@ -878,16 +879,20 @@ func TestResponsesStreamOutcomesPreserveAccounting(t *testing.T) {
 			// sseTerminal is the flat error envelope used by the Responses SSE
 			// protocol; the WebSocket protocol nests the error instead.
 			sseTerminal string
-			delta       bool
-			failed      bool
-			ignored     bool
+			// wantTerminal/wantSseTerminal hold the client-visible (sanitized)
+			// form of the upstream terminal frame; empty means unchanged.
+			wantTerminal    string
+			wantSseTerminal string
+			delta           bool
+			failed          bool
+			ignored         bool
 		}{
-			{name: "failed-null-fixed", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed","usage":null,"error":{"code":"server_error","message":"sensitive upstream detail"}}}`, failed: true},
-			{name: "failed-missing-fixed", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed"}}`, failed: true},
-			{name: "failed-actual-usage", expression: `tier("input", p * 2)`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed","usage":{"input_tokens":1000,"output_tokens":10,"total_tokens":1010}}}`, failed: true},
-			{name: "failed-estimated-output", expression: `tier("output", c * 2000)`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed","usage":null}}`, delta: true, failed: true},
-			{name: "error-after-created", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"error","status":500,"error":{"type":"server_error","code":"server_error","message":"Internal server error"}}`, sseTerminal: `{"type":"error","code":"server_error","message":"Internal server error","param":null,"sequence_number":2}`, failed: true},
-			{name: "business-error-after-created", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"error","status":400,"error":{"type":"invalid_request_error","code":"context_length_exceeded","message":"Input too long"}}`, sseTerminal: `{"type":"error","code":"context_length_exceeded","message":"Input too long","param":null,"sequence_number":2}`, failed: true, ignored: true},
+			{name: "failed-null-fixed", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed","usage":null,"error":{"code":"server_error","message":"sensitive upstream detail"}}}`, wantTerminal: `{"type":"response.failed","error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"},"response":{"id":"first","status":"failed","usage":null,"error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}}`, failed: true},
+			{name: "failed-missing-fixed", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed"}}`, wantTerminal: `{"type":"response.failed","error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"},"response":{"id":"first","status":"failed","error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}}`, failed: true},
+			{name: "failed-actual-usage", expression: `tier("input", p * 2)`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed","usage":{"input_tokens":1000,"output_tokens":10,"total_tokens":1010}}}`, wantTerminal: `{"type":"response.failed","error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"},"response":{"id":"first","status":"failed","usage":{"input_tokens":1000,"output_tokens":10,"total_tokens":1010},"error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}}`, failed: true},
+			{name: "failed-estimated-output", expression: `tier("output", c * 2000)`, terminal: `{"type":"response.failed","response":{"id":"first","status":"failed","usage":null}}`, wantTerminal: `{"type":"response.failed","error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"},"response":{"id":"first","status":"failed","usage":null,"error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}}`, delta: true, failed: true},
+			{name: "error-after-created", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"error","status":500,"error":{"type":"server_error","code":"server_error","message":"Internal server error"}}`, wantTerminal: `{"type":"error","status":503,"error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}`, sseTerminal: `{"type":"error","code":"server_error","message":"Internal server error","param":null,"sequence_number":2}`, wantSseTerminal: `{"type":"error","error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"},"sequence_number":2}`, failed: true},
+			{name: "business-error-after-created", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"error","status":400,"error":{"type":"invalid_request_error","code":"context_length_exceeded","message":"Input too long"}}`, wantTerminal: `{"type":"error","status":503,"error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}`, sseTerminal: `{"type":"error","code":"context_length_exceeded","message":"Input too long","param":null,"sequence_number":2}`, wantSseTerminal: `{"type":"error","error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"},"sequence_number":2}`, failed: true, ignored: true},
 			{name: "completed-at-output-limit", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"response.incomplete","response":{"id":"first","status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":1000,"output_tokens":1,"total_tokens":1001}}}`},
 			{name: "completed-zero-fixed", expression: `tier("request", fixed(0.002))`, terminal: `{"type":"response.completed","response":{"id":"first","status":"completed","usage":{"input_tokens":0,"output_tokens":0,"total_tokens":0}}}`},
 		} {
@@ -901,6 +906,15 @@ func TestResponsesStreamOutcomesPreserveAccounting(t *testing.T) {
 					terminal = tc.sseTerminal
 				}
 				events = append(events, terminal)
+				wantTerminal := terminal
+				if tc.wantTerminal != "" {
+					wantTerminal = tc.wantTerminal
+				}
+				if transport == "http-sse" && tc.wantSseTerminal != "" {
+					wantTerminal = tc.wantSseTerminal
+				}
+				expectedEvents := append([]string{}, events...)
+				expectedEvents[len(expectedEvents)-1] = wantTerminal
 				fixture := newResponsesWSBillingTest(t, tc.expression, func(ws *websocket.Conn, _ *http.Request) {
 					for turn := 0; ; turn++ {
 						_, request, err := ws.ReadMessage()
@@ -939,13 +953,23 @@ func TestResponsesStreamOutcomesPreserveAccounting(t *testing.T) {
 					require.NoError(t, err)
 					require.NoError(t, response.Body.Close())
 					assert.Equal(t, http.StatusOK, response.StatusCode)
-					assert.Contains(t, string(body), terminal)
+					// compare the terminal data line semantically (key order is
+					// not stable after sanitization re-marshals the frame)
+					var gotTerminal string
+					for _, line := range strings.Split(string(body), "
+") {
+						if strings.HasPrefix(line, "data: ") {
+							gotTerminal = strings.TrimPrefix(line, "data: ")
+						}
+					}
+					require.NotEmpty(t, gotTerminal)
+					assert.JSONEq(t, wantTerminal, gotTerminal)
 				} else {
 					require.NoError(t, fixture.client.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.create","stream_id":"planner","model":"ws-billing","input":"hi","max_output_tokens":1}`)))
-					for _, expected := range events {
+					for _, expected := range expectedEvents {
 						actual, err := common.Marshal(readResponsesWSTestEvent(t, fixture.client))
 						require.NoError(t, err)
-						assert.JSONEq(t, expected, string(actual), "upstream frames must be delivered once and unchanged")
+						assert.JSONEq(t, expected, string(actual), "upstream frames must be delivered once; error frames are sanitized")
 					}
 				}
 				quotas := []int{1000}
@@ -1038,7 +1062,8 @@ func TestResponsesHTTPHealthCountsFinalResult(t *testing.T) {
 			fixture.closeAndWait(t)
 			assert.Equal(t, int64(tc.attempts), attempts.Load())
 			if !tc.success {
-				assert.Equal(t, tc.firstStatus, response.StatusCode)
+				// upstream rejections are masked: clients always get a generic 503
+				assert.Equal(t, http.StatusServiceUnavailable, response.StatusCode)
 			} else {
 				assert.Equal(t, http.StatusOK, response.StatusCode)
 			}
@@ -1103,7 +1128,7 @@ func TestResponsesWebSocketAmbiguousControlErrorClosesAndSettlesOnce(t *testing.
 	require.NoError(t, fixture.client.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.cancel","response_id":"active"}`)))
 	body, err := common.Marshal(readResponsesWSTestEvent(t, fixture.client))
 	require.NoError(t, err)
-	assert.JSONEq(t, terminal, string(body))
+	assert.JSONEq(t, `{"type":"error","status":503,"error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}`, string(body))
 	_, _, err = fixture.client.ReadMessage()
 	require.Error(t, err, "an unattributed error must close the connection instead of remaining busy")
 	var timeout net.Error
@@ -1188,7 +1213,8 @@ func TestResponsesWebSocketAcceptsCancelAfterControlError(t *testing.T) {
 	require.NoError(t, fixture.client.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.cancel","response_id":"wrong"}`)))
 	cancelError := readResponsesWSTestEvent(t, fixture.client)
 	assert.Equal(t, "error", cancelError["type"])
-	assert.Equal(t, float64(http.StatusBadRequest), cancelError["status"])
+	// upstream error frames are masked: provider details never reach the client
+	assert.Equal(t, float64(http.StatusServiceUnavailable), cancelError["status"])
 	require.NoError(t, fixture.client.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.cancel","response_id":"active"}`)))
 	assert.Equal(t, "response.cancelled", readResponsesWSTestEvent(t, fixture.client)["type"])
 	fixture.closeAndWait(t)
@@ -1262,7 +1288,7 @@ func TestResponsesWebSocketForwardsErrorForOtherResponseWithoutEndingRequest(t *
 	assert.Equal(t, "response.created", readResponsesWSTestEvent(t, fixture.client)["type"])
 	stray, err := common.Marshal(readResponsesWSTestEvent(t, fixture.client))
 	require.NoError(t, err)
-	assert.JSONEq(t, strayError, string(stray))
+	assert.JSONEq(t, `{"type":"error","response_id":"other","status":503,"error":{"type":"service_unavailable","code":"service_unavailable","message":"Service Temporarily Unavailable"}}`, string(stray))
 	assert.Equal(t, "response.completed", readResponsesWSTestEvent(t, fixture.client)["type"])
 	fixture.closeAndWait(t)
 	assertResponsesWSAccounting(t, fixture, []int{1000})

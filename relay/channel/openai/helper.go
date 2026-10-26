@@ -266,5 +266,8 @@ func sendResponsesStreamData(c *gin.Context, streamResponse dto.ResponsesStreamR
 	if data == "" {
 		return
 	}
+	if sanitized, isErr := helper.SanitizeUpstreamErrorPayload(common.StringToByteSlice(data)); isErr {
+		data = string(sanitized)
+	}
 	_ = helper.ResponseChunkData(c, streamResponse, data)
 }

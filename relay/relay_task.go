@@ -654,7 +654,7 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 		Quota:      task.Quota,
 		Action:     constant.NormalizeTaskAction(task.Action),
 		Status:     string(task.Status),
-		FailReason: task.FailReason,
+		FailReason: service.MaskTaskFailReason(task.FailReason),
 		ResultURL:  task.GetResultURL(),
 		SubmitTime: task.SubmitTime,
 		StartTime:  task.StartTime,

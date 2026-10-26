@@ -104,7 +104,17 @@ func newResponsesWSRequestRunner(c *gin.Context) relay.ResponsesWSRequestRunner 
 			Error *types.OpenAIError `json:"error"`
 		}
 		if common.Unmarshal(response.body.Bytes(), &body) == nil && body.Error != nil {
-			return types.WithOpenAIError(*body.Error, response.status, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			// These errors come from our own middleware chain (token auth, rate
+			// limit, request validation) — they are internal errors, not
+			// upstream ones. Keep them as new_api_error so upstream masking
+			// never hides them (quota/balance/auth must stay visible).
+			code := types.ErrorCodeInvalidRequest
+			if body.Error.Code != nil {
+				if s, ok := body.Error.Code.(string); ok && s != "" {
+					code = types.ErrorCode(s)
+				}
+			}
+			return types.NewErrorWithStatusCode(errors.New(body.Error.Message), code, response.status, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 		}
 		// The existing in-memory rate limiter returns a bare 429 response.
 		return types.NewErrorWithStatusCode(errors.New(http.StatusText(response.status)), types.ErrorCodeInvalidRequest, response.status, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())

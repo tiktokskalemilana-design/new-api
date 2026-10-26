@@ -228,3 +228,16 @@ func TaskErrorFromAPIError(apiErr *types.NewAPIError) *taskdto.TaskError {
 		Error:      apiErr.Err,
 	}
 }
+
+// MaskedTaskFailReason is the only failure reason clients ever see for failed
+// tasks: upstream provider failure details (moderation text, provider codes,
+// internal URLs) must never leak through task status polling.
+const MaskedTaskFailReason = "Task failed"
+
+// MaskTaskFailReason hides upstream task failure details from API clients.
+func MaskTaskFailReason(reason string) string {
+	if reason == "" {
+		return ""
+	}
+	return MaskedTaskFailReason
+}

@@ -338,6 +338,11 @@ func RelayMidjourney(c *gin.Context) {
 		if mjErr.Code == 30 {
 			mjErr.Result = i18n.T(c, i18n.MsgRelayGroupSaturated)
 			statusCode = http.StatusTooManyRequests
+		} else {
+			// Never leak upstream channel/provider error details to clients.
+			statusCode = http.StatusServiceUnavailable
+			mjErr.Description = types.UpstreamMaskedMessage
+			mjErr.Result = ""
 		}
 		c.JSON(statusCode, gin.H{
 			"description": fmt.Sprintf("%s %s", mjErr.Description, mjErr.Result),
@@ -764,6 +769,7 @@ func presentTaskSubmission(c *gin.Context, outcome *taskSubmissionOutcome) {
 
 func respondTaskSubmissionError(c *gin.Context, taskErr *taskdto.TaskError) {
 	service.RecordRequestPolicyTermination(c, taskSubmissionAPIError(taskErr))
+	taskErr = maskUpstreamTaskError(taskErr)
 	newTaskPluginSubmitDiagnostics(c).presentError(taskErr)
 	if middleware.RespondTaskPluginError(c, taskErr) {
 		return
@@ -771,8 +777,40 @@ func respondTaskSubmissionError(c *gin.Context, taskErr *taskdto.TaskError) {
 	respondTaskError(c, taskErr)
 }
 
+// upstreamTaskErrorCodes are task error codes whose message may embed an
+// upstream provider response (body, status, network failure). Their details
+// must never reach API clients.
+var upstreamTaskErrorCodes = map[string]bool{
+	"fail_to_fetch_task":             true,
+	"get_task_failed":                true,
+	"get_origin_task_failed":         true,
+	"do_request_failed":              true,
+	"build_request_failed":           true,
+	"copy_response_body_failed":      true,
+	"convert_to_openai_video_failed": true,
+	"marshal_response_failed":        true,
+	"plugin_submit_response_invalid": true,
+}
+
+// maskUpstreamTaskError rewrites task errors that carry upstream provider
+// details into a generic 503. Local errors (quota, pricing config, request
+// validation) pass through untouched.
+func maskUpstreamTaskError(taskErr *taskdto.TaskError) *taskdto.TaskError {
+	if taskErr == nil || taskErr.LocalError || !upstreamTaskErrorCodes[taskErr.Code] {
+		return taskErr
+	}
+	return &taskdto.TaskError{
+		Code:       string(types.ErrorCodeUpstreamUnavailable),
+		Message:    types.UpstreamMaskedMessage,
+		StatusCode: http.StatusServiceUnavailable,
+		LocalError: taskErr.LocalError,
+		Error:      taskErr.Error,
+	}
+}
+
 // respondTaskError 统一输出 Task 错误响应（含 429 限流提示改写）
 func respondTaskError(c *gin.Context, taskErr *taskdto.TaskError) {
+	taskErr = maskUpstreamTaskError(taskErr)
 	if taskErr.StatusCode == http.StatusTooManyRequests {
 		taskErr.Message = i18n.T(c, i18n.MsgRelayGroupUpstreamSaturated)
 	}

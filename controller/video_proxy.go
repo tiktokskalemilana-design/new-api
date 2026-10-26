@@ -305,10 +305,7 @@ func proxyTaskMedia(c *gin.Context, task *model.Task, descriptor *relaychannel.T
 			message: "Artifact content is no longer available",
 		}
 	case http.StatusTooManyRequests:
-		if retryAfter := strings.TrimSpace(resp.Header.Get("Retry-After")); retryAfter != "" &&
-			len(retryAfter) <= 256 && !strings.ContainsAny(retryAfter, "\r\n") {
-			c.Header("Retry-After", retryAfter)
-		}
+		// Do not forward the upstream Retry-After: it reveals provider rate limiting.
 		return &taskMediaProxyError{
 			status: http.StatusServiceUnavailable, code: "artifact_upstream_busy",
 			message: "Artifact upstream is busy",

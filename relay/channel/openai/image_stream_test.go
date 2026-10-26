@@ -626,8 +626,9 @@ func TestOpenaiImageStreamHandlerRecordsUpstreamErrorEvent(t *testing.T) {
 	require.Equal(t, 1, info.StreamStatus.TotalErrorCount())
 	require.Contains(t, info.StreamStatus.Errors[0].Message, "INTERNAL_ERROR")
 	// The scanner strips the upstream "event: error" line; the event name is
-	// rebuilt from the JSON "type" field (upstream_error). The error message
-	// is still forwarded in the data: payload (stream ID 77).
+	// rebuilt from the JSON "type" field (upstream_error). The upstream error
+	// payload is masked: provider details never reach the client.
 	require.Contains(t, recorder.Body.String(), `event: upstream_error`)
-	require.Contains(t, recorder.Body.String(), `stream ID 77`)
+	require.Contains(t, recorder.Body.String(), `Service Temporarily Unavailable`)
+	require.NotContains(t, recorder.Body.String(), `stream ID 77`)
 }
