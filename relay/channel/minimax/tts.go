@@ -183,6 +183,18 @@ func handleChatCompletionResponse(c *gin.Context, resp *http.Response, info *rel
 	}
 	defer resp.Body.Close()
 
+	// Never forward upstream error bodies/statuses to clients.
+	if resp.StatusCode/100 != 2 {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": gin.H{
+				"message": types.UpstreamMaskedMessage,
+				"type":    string(types.ErrorCodeUpstreamUnavailable),
+				"code":    string(types.ErrorCodeUpstreamUnavailable),
+			},
+		})
+		return nil, nil
+	}
+
 	// Set response headers
 	for key, values := range resp.Header {
 		if !service.ShouldCopyUpstreamHeader(c, key, values) {
