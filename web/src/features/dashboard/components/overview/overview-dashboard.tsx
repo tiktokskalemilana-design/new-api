@@ -230,7 +230,7 @@ function StartStepItem(props: {
   const StatusIcon = props.step.completed ? Check : Circle
 
   return (
-    <li className='relative flex gap-3 pb-2.5 last:pb-0'>
+    <li className='relative flex max-w-full min-w-0 gap-3 pb-2.5 last:pb-0'>
       {!props.isLast && (
         <span
           className='bg-border absolute top-9 bottom-0 left-4 w-px'
@@ -239,7 +239,7 @@ function StartStepItem(props: {
       )}
       <span
         className={cn(
-          'bg-background relative z-10 flex size-8 shrink-0 items-center justify-center rounded-lg border shadow-xs',
+          'bg-background relative z-10 flex size-8 shrink-0 items-center justify-center rounded-lg border',
           props.step.completed && 'border-success/30 bg-success/10'
         )}
       >
@@ -251,20 +251,22 @@ function StartStepItem(props: {
 
       <Link
         to={props.step.to}
-        className='bg-background/70 hover:bg-muted/50 focus-visible:ring-ring flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left shadow-xs transition-colors outline-none focus-visible:ring-2'
+        className='bg-background/70 hover:bg-muted/50 focus-visible:ring-ring flex max-w-full min-w-0 flex-1 items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-2'
       >
-        <span className='flex min-w-0 items-start gap-2.5'>
-          <span className='bg-muted mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg'>
+        <span className='flex min-w-0 flex-1 items-start gap-2.5'>
+          <span className='bg-muted text-muted-foreground dark:text-foreground/70 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg'>
             <Icon className='size-3.5' aria-hidden='true' />
           </span>
-          <span className='flex min-w-0 flex-col gap-0.5'>
-            <span className='flex items-center gap-2 text-sm font-medium'>
-              <span className='text-muted-foreground font-mono text-xs tabular-nums'>
+          <span className='flex min-w-0 flex-1 flex-col gap-0.5'>
+            <span className='flex min-w-0 items-start gap-2 text-sm font-medium'>
+              <span className='text-muted-foreground shrink-0 font-mono text-xs tabular-nums'>
                 {props.index + 1}.
               </span>
-              <span className='truncate'>{props.step.title}</span>
+              <span className='line-clamp-2 min-w-0 [overflow-wrap:anywhere]'>
+                {props.step.title}
+              </span>
             </span>
-            <span className='text-muted-foreground line-clamp-1 text-xs'>
+            <span className='text-muted-foreground line-clamp-2 text-xs [overflow-wrap:anywhere]'>
               {props.step.description}
             </span>
           </span>
@@ -426,17 +428,17 @@ function QuickActionItem(props: { action: QuickAction }) {
   return (
     <Button
       variant='outline'
-      className='h-auto justify-start rounded-xl px-3 py-3 text-left'
+      className='h-auto w-full max-w-full min-w-0 justify-start rounded-[16px] px-3 py-3 text-left whitespace-normal'
       render={<Link to={props.action.to} />}
     >
-      <span className='bg-muted flex size-9 shrink-0 items-center justify-center rounded-lg'>
+      <span className='bg-muted text-muted-foreground dark:text-foreground/70 flex size-9 shrink-0 items-center justify-center rounded-lg'>
         <Icon className='size-4' aria-hidden='true' />
       </span>
       <span className='flex min-w-0 flex-1 flex-col gap-0.5'>
-        <span className='truncate text-sm font-medium'>
+        <span className='line-clamp-2 text-sm font-medium [overflow-wrap:anywhere]'>
           {props.action.title}
         </span>
-        <span className='text-muted-foreground line-clamp-2 text-xs leading-relaxed'>
+        <span className='text-muted-foreground line-clamp-2 text-xs leading-relaxed [overflow-wrap:anywhere]'>
           {props.action.description}
         </span>
       </span>
@@ -451,11 +453,16 @@ function CompactQuickAction(props: { action: QuickAction }) {
     <Button
       variant='outline'
       size='sm'
-      className='bg-background/70 h-8 min-w-24 gap-1.5 px-2.5'
+      className='bg-background/70 h-auto min-h-8 max-w-full min-w-0 gap-1.5 px-2.5 whitespace-normal'
       render={<Link to={props.action.to} />}
     >
-      <Icon data-icon='inline-start' />
-      <span>{props.action.title}</span>
+      <Icon
+        className='text-muted-foreground dark:text-foreground/70 shrink-0'
+        data-icon='inline-start'
+      />
+      <span className='min-w-0 [overflow-wrap:anywhere]'>
+        {props.action.title}
+      </span>
     </Button>
   )
 }
@@ -646,37 +653,44 @@ export function OverviewDashboard() {
         )}
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
-        <div className='flex flex-col gap-4'>
-          <div id={setupGuideId} hidden={!setupGuideExpanded}>
+        <div className='flex w-full max-w-full min-w-0 flex-col gap-4'>
+          <div
+            id={setupGuideId}
+            className='max-w-full min-w-0'
+            hidden={!setupGuideExpanded}
+          >
             {setupGuideExpanded && (
-              <CardStaggerContainer className='grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]'>
-                <CardStaggerItem className='bg-card h-full overflow-hidden rounded-2xl border shadow-xs'>
-                  <div className='relative h-full overflow-hidden p-4 sm:p-5'>
+              <CardStaggerContainer className='grid max-w-full min-w-0 grid-cols-[minmax(0,1fr)] items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]'>
+                <CardStaggerItem className='bg-card h-full max-w-full min-w-0 overflow-hidden rounded-[16px] border'>
+                  <div className='relative h-full max-w-full min-w-0 overflow-hidden p-4 sm:p-5'>
                     <SetupGuideBackdrop />
-                    <div className='relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]'>
-                      <div className='flex min-w-0 flex-col gap-5'>
-                        <div className='flex flex-wrap items-start justify-between gap-3'>
-                          <div className='flex max-w-2xl flex-col gap-1'>
-                            <div className='text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wider uppercase'>
+                    <div className='relative grid max-w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]'>
+                      <div className='flex max-w-full min-w-0 flex-col gap-5'>
+                        <div className='flex max-w-full min-w-0 flex-wrap items-start justify-between gap-3'>
+                          <div className='flex max-w-2xl min-w-0 flex-col gap-1'>
+                            <div className='text-muted-foreground flex max-w-full min-w-0 items-center gap-2 text-xs font-medium tracking-wider uppercase'>
                               <ListChecks
-                                className='size-3.5'
+                                className='dark:text-foreground/70 size-3.5 shrink-0'
                                 aria-hidden='true'
                               />
-                              {t('Get started')}
+                              <span className='min-w-0 [overflow-wrap:anywhere]'>
+                                {t('Get started')}
+                              </span>
                             </div>
-                            <h3 className='text-xl font-semibold tracking-tight sm:text-2xl'>
+                            <h3 className='max-w-full text-xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-2xl'>
                               {t('Build on your API gateway in minutes')}
                             </h3>
-                            <p className='text-muted-foreground max-w-xl text-sm leading-relaxed'>
+                            <p className='text-muted-foreground max-w-xl text-sm leading-relaxed [overflow-wrap:anywhere]'>
                               {t(
                                 'A focused home for keys, balance, routing, and service health.'
                               )}
                             </p>
                           </div>
-                          <div className='flex flex-wrap items-center gap-2'>
+                          <div className='flex max-w-full min-w-0 flex-wrap items-center gap-2'>
                             <Button
                               variant='outline'
                               size='sm'
+                              className='h-auto min-h-8 max-w-full min-w-0 whitespace-normal'
                               aria-expanded={setupGuideExpanded}
                               aria-controls={setupGuideId}
                               onClick={handleSetupGuideToggle}
@@ -684,14 +698,10 @@ export function OverviewDashboard() {
                               <ChevronUp data-icon='inline-start' />
                               {t('Hide setup guide')}
                             </Button>
-                            <Button size='sm' render={<Link to='/keys' />}>
-                              <KeyRound data-icon='inline-start' />
-                              {t('Create API Key')}
-                            </Button>
                           </div>
                         </div>
 
-                        <ol className='bg-background/45 rounded-2xl border p-2 backdrop-blur'>
+                        <ol className='max-w-full min-w-0'>
                           {startSteps.map((step, index) => (
                             <StartStepItem
                               key={step.title}
@@ -711,17 +721,17 @@ export function OverviewDashboard() {
                   </div>
                 </CardStaggerItem>
 
-                <CardStaggerItem className='bg-card h-full rounded-2xl border p-4 shadow-xs sm:p-5'>
-                  <div className='flex h-full flex-col gap-4'>
-                    <div className='flex flex-col gap-1'>
-                      <div className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+                <CardStaggerItem className='bg-card h-full max-w-full min-w-0 rounded-[16px] border p-4 sm:p-5'>
+                  <div className='flex h-full max-w-full min-w-0 flex-col gap-4'>
+                    <div className='flex max-w-full min-w-0 flex-col gap-1'>
+                      <div className='text-muted-foreground text-xs font-medium tracking-wider [overflow-wrap:anywhere] uppercase'>
                         {t('Recommended actions')}
                       </div>
-                      <h3 className='text-lg font-semibold tracking-tight'>
+                      <h3 className='text-lg font-semibold tracking-tight [overflow-wrap:anywhere]'>
                         {t('Keep the platform ready')}
                       </h3>
                     </div>
-                    <div className='grid gap-2'>
+                    <div className='grid max-w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-2'>
                       {visibleQuickActions.map((action) => (
                         <QuickActionItem key={action.title} action={action} />
                       ))}
@@ -732,37 +742,37 @@ export function OverviewDashboard() {
             )}
           </div>
           {!setupGuideExpanded && !setupComplete && (
-            <CardStaggerContainer>
-              <CardStaggerItem className='bg-card overflow-hidden rounded-2xl border shadow-xs'>
-                <div className='relative overflow-hidden px-4 py-3 sm:px-5'>
+            <CardStaggerContainer className='max-w-full min-w-0'>
+              <CardStaggerItem className='bg-card max-w-full min-w-0 overflow-hidden rounded-[16px] border'>
+                <div className='relative max-w-full min-w-0 overflow-hidden px-4 py-3 sm:px-5'>
                   <SetupGuideBackdrop compact />
-                  <div className='relative flex flex-wrap items-center justify-between gap-3'>
-                    <div className='flex min-w-0 items-center gap-3'>
-                      <span className='bg-background/70 flex size-9 shrink-0 items-center justify-center rounded-xl border shadow-xs'>
+                  <div className='relative flex max-w-full min-w-0 flex-wrap items-center justify-between gap-3'>
+                    <div className='flex max-w-full min-w-0 flex-1 items-center gap-3'>
+                      <span className='bg-background/70 flex size-9 shrink-0 items-center justify-center rounded-xl border'>
                         <Check
                           className='text-success size-4'
                           aria-hidden='true'
                         />
                       </span>
-                      <div className='min-w-0'>
-                        <div className='flex items-center gap-2'>
-                          <h3 className='truncate text-sm font-semibold'>
+                      <div className='max-w-full min-w-0 flex-1'>
+                        <div className='flex max-w-full min-w-0 flex-wrap items-center gap-2'>
+                          <h3 className='min-w-0 text-sm font-semibold [overflow-wrap:anywhere]'>
                             {t('Setup guide')}
                           </h3>
-                          <span className='text-muted-foreground bg-background/60 rounded-md border px-2 py-0.5 text-xs'>
+                          <span className='text-muted-foreground bg-background/60 max-w-full min-w-0 rounded-md border px-2 py-0.5 text-xs [overflow-wrap:anywhere] whitespace-normal'>
                             {t('Setup progress: {{completed}}/{{total}}', {
                               completed: completedStepCount,
                               total: startSteps.length,
                             })}
                           </span>
                         </div>
-                        <p className='text-muted-foreground line-clamp-1 text-xs'>
+                        <p className='text-muted-foreground line-clamp-2 text-xs [overflow-wrap:anywhere]'>
                           {t('Setup guide is collapsed. Expand it anytime.')}
                         </p>
                       </div>
                     </div>
 
-                    <div className='flex flex-wrap items-center gap-2'>
+                    <div className='flex max-w-full min-w-0 flex-wrap items-center gap-2'>
                       {visibleQuickActions.map((action) => (
                         <CompactQuickAction
                           key={action.title}
@@ -772,7 +782,7 @@ export function OverviewDashboard() {
                       <Button
                         variant='outline'
                         size='sm'
-                        className='bg-background/70 h-8 min-w-28'
+                        className='bg-background/70 h-auto min-h-8 max-w-full min-w-0 whitespace-normal'
                         aria-expanded={setupGuideExpanded}
                         aria-controls={setupGuideId}
                         onClick={handleSetupGuideToggle}

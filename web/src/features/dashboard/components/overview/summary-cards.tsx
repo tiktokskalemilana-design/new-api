@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Flame, ShieldCheck, TrendingDown } from 'lucide-react'
+import { ArrowRight, ShieldCheck, TrendingDown } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -28,8 +28,12 @@ import { getUserQuotaDates } from '@/features/dashboard/api'
 import { useSummaryCardsConfig } from '@/features/dashboard/hooks/use-dashboard-config'
 import type { QuotaDataItem } from '@/features/dashboard/types'
 import { useStatus } from '@/hooks/use-status'
-import { getCurrencyLabel, isCurrencyDisplayEnabled } from '@/lib/currency'
-import { formatNumber, formatQuota } from '@/lib/format'
+import {
+  formatQuotaWithCurrency,
+  getCurrencyLabel,
+  isCurrencyDisplayEnabled,
+} from '@/lib/currency'
+import { formatNumber } from '@/lib/format'
 import { requireServerSuccess } from '@/lib/server-error-message'
 import { computeTimeRange } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -38,6 +42,16 @@ import { useAuthStore } from '@/stores/auth-store'
 import { StatCard } from '../ui/stat-card'
 
 const SUMMARY_SPARKLINE_BUCKETS = 12
+
+function formatSummaryMoney(quota: number): string {
+  return formatQuotaWithCurrency(quota, {
+    digitsLarge: 2,
+    digitsSmall: 2,
+    minimumFractionDigits: 2,
+    abbreviate: false,
+    locale: 'en-US',
+  })
+}
 
 type SummarySparklineKey = 'balance' | 'usage' | 'requests'
 
@@ -168,7 +182,7 @@ export function SummaryCards() {
 
   const summaryValues = useMemo(() => {
     return {
-      usedDisplay: formatQuota(usedQuota),
+      usedDisplay: formatSummaryMoney(usedQuota),
       requestCountDisplay: formatNumber(requestCount),
     }
   }, [requestCount, usedQuota])
@@ -213,7 +227,7 @@ export function SummaryCards() {
   const healthCfg = HEALTH_CONFIG[healthLevel]
   const runwayDays = getRunwayDays(remainQuota, recentUsage)
 
-  const todayUsageDisplay = formatQuota(recentUsage)
+  const todayUsageDisplay = formatSummaryMoney(recentUsage)
   let runwayDisplay: string
   if (runwayDays !== null) {
     if (runwayDays < 1) {
@@ -226,7 +240,7 @@ export function SummaryCards() {
   } else if (remainQuota <= 0) {
     runwayDisplay = t('Balance depleted')
   } else {
-    runwayDisplay = t('No recent usage')
+    runwayDisplay = '—'
   }
 
   const items = useSummaryCardsConfig({
@@ -253,9 +267,9 @@ export function SummaryCards() {
   })
 
   return (
-    <div className='bg-card overflow-hidden rounded-2xl border shadow-xs'>
+    <div className='bg-card overflow-hidden rounded-[16px] border'>
       <div className='grid xl:grid-cols-[minmax(0,1fr)_19rem]'>
-        <div className='flex flex-col gap-2.5 p-3 sm:gap-3 sm:p-5'>
+        <div className='flex min-w-0 flex-col gap-2.5 p-4 sm:gap-3 sm:p-5'>
           <div className='flex flex-wrap items-start justify-between gap-3'>
             <div className='flex flex-col gap-1'>
               <h3 className='text-sm font-semibold sm:text-base'>
@@ -266,17 +280,18 @@ export function SummaryCards() {
               </p>
             </div>
           </div>
-          <StaggerContainer className='grid grid-cols-3 gap-1.5 sm:gap-3'>
+          <StaggerContainer className='grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3'>
             {items.map((it) => (
               <StaggerItem
                 key={it.key}
-                className='bg-background/60 rounded-lg border px-2 py-1.5 sm:rounded-xl sm:p-3'
+                className='bg-background/60 min-w-0 rounded-lg border p-2.5 sm:rounded-xl sm:p-3'
               >
                 <StatCard
                   title={it.title}
                   value={it.value}
                   description={it.desc}
                   icon={it.icon}
+                  iconTone='neutral'
                   tone={it.tone}
                   sparkline={it.sparkline}
                   sparklineVariant={it.sparklineVariant}
@@ -288,7 +303,7 @@ export function SummaryCards() {
           </StaggerContainer>
         </div>
 
-        <div className='flex flex-col justify-between gap-3 border-t bg-[linear-gradient(135deg,color-mix(in_oklch,var(--overview-accent-2)_12%,var(--background))_0%,color-mix(in_oklch,oklch(0.82_0.04_155)_8%,var(--background))_48%,color-mix(in_oklch,var(--overview-accent-1)_7%,var(--background))_100%)] p-3 sm:gap-4 sm:p-5 xl:border-t-0 xl:border-l'>
+        <div className='bg-card flex min-w-0 flex-col justify-between gap-3 border-t p-4 sm:gap-4 sm:p-5 xl:border-t-0 xl:border-l'>
           <div className='flex flex-col gap-2 sm:gap-3'>
             <div className='flex items-center justify-between'>
               <span className='text-muted-foreground text-xs font-medium'>
@@ -305,44 +320,30 @@ export function SummaryCards() {
               </span>
             </div>
 
-            <div className='font-mono text-xl font-semibold tracking-tight sm:text-2xl'>
-              {formatQuota(remainQuota)}
+            <div className='min-w-0 font-mono text-xl font-semibold tracking-tight break-words tabular-nums sm:text-2xl'>
+              {formatSummaryMoney(remainQuota)}
             </div>
 
-            <div className='grid grid-cols-2 gap-2'>
-              <div className='bg-background/60 rounded-lg px-2.5 py-2'>
-                <div className='text-muted-foreground flex items-center gap-1 text-[11px] leading-none font-medium'>
-                  <Flame className='size-3 shrink-0' aria-hidden='true' />
-                  <span className='truncate'>{t('Last 24h usage')}</span>
-                </div>
-                <div className='text-foreground mt-1.5 truncate text-xs font-semibold tabular-nums'>
-                  {formatQuota(recentUsage)}
-                </div>
+            <div className='bg-background/60 min-w-0 rounded-lg px-2.5 py-2'>
+              <div className='text-muted-foreground flex items-center gap-1 text-[11px] leading-none font-medium'>
+                {runwayDays !== null && runwayDays < 3 ? (
+                  <TrendingDown
+                    className='size-3 shrink-0'
+                    aria-hidden='true'
+                  />
+                ) : (
+                  <ShieldCheck className='size-3 shrink-0' aria-hidden='true' />
+                )}
+                <span>{t('Runway')}</span>
               </div>
-              <div className='bg-background/60 rounded-lg px-2.5 py-2'>
-                <div className='text-muted-foreground flex items-center gap-1 text-[11px] leading-none font-medium'>
-                  {runwayDays !== null && runwayDays < 3 ? (
-                    <TrendingDown
-                      className='size-3 shrink-0'
-                      aria-hidden='true'
-                    />
-                  ) : (
-                    <ShieldCheck
-                      className='size-3 shrink-0'
-                      aria-hidden='true'
-                    />
-                  )}
-                  <span className='truncate'>{t('Runway')}</span>
-                </div>
-                <div
-                  className={cn(
-                    'mt-1.5 truncate text-xs font-semibold tabular-nums',
-                    healthLevel === 'critical' && 'text-destructive',
-                    healthLevel === 'caution' && 'text-warning'
-                  )}
-                >
-                  {runwayDisplay}
-                </div>
+              <div
+                className={cn(
+                  'mt-1.5 min-w-0 text-sm font-semibold break-words tabular-nums',
+                  healthLevel === 'critical' && 'text-destructive',
+                  healthLevel === 'caution' && 'text-warning'
+                )}
+              >
+                {runwayDisplay}
               </div>
             </div>
           </div>

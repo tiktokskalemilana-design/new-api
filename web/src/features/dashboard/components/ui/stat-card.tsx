@@ -300,12 +300,12 @@ export function StatCard(props: StatCardProps) {
   return (
     <div
       className={cn(
-        'group flex flex-col justify-between sm:min-h-32 sm:gap-3',
+        'group flex min-w-0 flex-col justify-between sm:min-h-32 sm:gap-3',
         props.compactMobile ? 'gap-1' : 'gap-1.5'
       )}
     >
-      <div className='flex items-start justify-between gap-1'>
-        <div className='text-muted-foreground flex items-center gap-1 text-[11px] font-medium sm:gap-2 sm:text-xs'>
+      <div className='flex min-w-0 items-start justify-between gap-1'>
+        <div className='text-muted-foreground flex min-w-0 items-center gap-1 text-[11px] font-medium sm:gap-2 sm:text-xs'>
           <IconBadge
             tone={iconTone}
             size='stat'
@@ -316,7 +316,10 @@ export function StatCard(props: StatCardProps) {
           >
             <Icon />
           </IconBadge>
-          <span className='line-clamp-1 leading-snug sm:line-clamp-2'>
+          <span
+            className='line-clamp-2 min-w-0 leading-snug'
+            title={props.title}
+          >
             {props.title}
           </span>
         </div>

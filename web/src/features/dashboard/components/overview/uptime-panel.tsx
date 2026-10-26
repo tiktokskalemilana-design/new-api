@@ -98,7 +98,7 @@ export function UptimePanel() {
     <PanelWrapper
       title={
         <span className='flex items-center gap-2'>
-          <IconBadge tone='success' size='sm'>
+          <IconBadge tone='neutral' size='sm'>
             <Activity />
           </IconBadge>
           {t('Uptime')}
@@ -108,7 +108,7 @@ export function UptimePanel() {
       loading={loading}
       empty={!groups.length}
       emptyMessage={t('No uptime monitoring configured')}
-      height='h-80'
+      height='h-24'
       contentClassName='p-0'
       headerActions={
         <Button

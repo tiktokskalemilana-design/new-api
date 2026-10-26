@@ -130,7 +130,7 @@ export function AppHeader({
             </div>
           )}
           {showSearch && (
-            <Search className='w-8 flex-none [&>span]:hidden sm:[&>span]:inline' />
+            <Search className='w-10 flex-none sm:w-8 [&>span]:hidden sm:[&>span]:inline' />
           )}
           {showNotifications && (
             <NotificationPopover
@@ -144,7 +144,9 @@ export function AppHeader({
               loading={notifications.loading}
             />
           )}
-          <LanguageSwitcher />
+          <div className='flex shrink-0 items-center [&>button]:size-10 sm:[&>button]:size-9'>
+            <LanguageSwitcher />
+          </div>
           {showConfigDrawer && <ConfigDrawer />}
           {showProfileDropdown && <ProfileDropdown />}
         </div>

@@ -51,7 +51,7 @@ export function ApiInfoPanel() {
     <PanelWrapper
       title={
         <span className='flex items-center gap-2'>
-          <IconBadge tone='info' size='sm'>
+          <IconBadge tone='neutral' size='sm'>
             <Route />
           </IconBadge>
           {t('API Info')}
@@ -61,7 +61,7 @@ export function ApiInfoPanel() {
       loading={loading}
       empty={!list.length}
       emptyMessage={t('No API routes configured')}
-      height='h-72'
+      height='h-24'
       contentClassName='p-0'
     >
       <ScrollArea className='h-72'>

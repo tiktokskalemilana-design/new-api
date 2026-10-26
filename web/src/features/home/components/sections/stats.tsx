@@ -104,19 +104,26 @@ export function Stats(_props: StatsProps) {
     { end: 10, suffix: '+', label: t('scheduling controls') },
   ]
 
+  const separators = [
+    'dark:border-[#242328]',
+    'dark:border-[#fdfdfd]',
+    'dark:border-[#fbfaff]',
+    'dark:border-[#f7f6fb]',
+  ]
+
   return (
-    <div className='border-border/40 bg-muted/10 relative z-10 border-y'>
-      <div className='mx-auto max-w-6xl px-6 py-10 md:py-12'>
-        <div className='grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12'>
-          {stats.map((s) => (
+    <div className='border-border/40 bg-muted/10 relative z-10 border-b md:border-t dark:border-[#242328] dark:bg-transparent'>
+      <div className='mx-auto max-w-6xl px-4 md:px-6'>
+        <div className='grid md:grid-cols-4 md:gap-12 md:py-12'>
+          {stats.map((s, i) => (
             <div
               key={s.label}
-              className='flex flex-col items-center text-center'
+              className={`border-border/40 flex flex-col items-start border-t py-5 text-left md:border-t-0 md:py-0 ${separators[i]}`}
             >
-              <span className='text-2xl font-bold tracking-tight md:text-3xl'>
+              <span className='text-[30px] font-light tracking-tight tabular-nums dark:text-white'>
                 <Counter end={s.end} suffix={s.suffix} decimals={s.decimals} />
               </span>
-              <span className='text-muted-foreground mt-1.5 text-xs'>
+              <span className='text-muted-foreground mt-2 font-mono text-[11px] tracking-[0.15em] uppercase dark:text-[#636267]'>
                 {s.label}
               </span>
             </div>

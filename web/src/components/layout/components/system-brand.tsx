@@ -61,7 +61,7 @@ export function SystemBrand(props: SystemBrandProps) {
         to='/'
         aria-label={t('Go to home')}
         className={cn(
-          'text-foreground inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-sm font-medium transition-colors outline-none select-none',
+          'text-foreground inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 font-mono text-sm font-medium tracking-tight transition-colors outline-none select-none',
           'hover:bg-accent focus-visible:ring-ring/40 focus-visible:ring-2'
         )}
       >
@@ -69,7 +69,7 @@ export function SystemBrand(props: SystemBrandProps) {
           <img
             src={logo}
             alt={t('Logo')}
-            className='size-full rounded-md object-cover'
+            className='size-full rounded-md object-cover dark:grayscale'
           />
         </div>
         <span className='max-w-[12rem] truncate'>{name}</span>
@@ -89,11 +89,13 @@ export function SystemBrand(props: SystemBrandProps) {
             <img
               src={logo}
               alt={t('Logo')}
-              className='size-full rounded-lg object-cover'
+              className='size-full rounded-lg object-cover dark:grayscale'
             />
           </div>
           <div className='grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden'>
-            <span className='truncate font-semibold'>{name}</span>
+            <span className='truncate font-mono font-semibold tracking-tight'>
+              {name}
+            </span>
             <span className='truncate text-xs'>{version}</span>
           </div>
         </SidebarMenuButton>

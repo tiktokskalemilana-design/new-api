@@ -61,7 +61,7 @@ export function AnnouncementsPanel() {
     <PanelWrapper
       title={
         <span className='flex items-center gap-2'>
-          <IconBadge tone='warning' size='sm'>
+          <IconBadge tone='neutral' size='sm'>
             <Megaphone />
           </IconBadge>
           {t('Announcements')}
@@ -71,7 +71,7 @@ export function AnnouncementsPanel() {
       loading={loading}
       empty={!list.length}
       emptyMessage={t('No announcements at this time')}
-      height='h-72'
+      height='h-24'
       contentClassName='p-0'
     >
       <ScrollArea className='h-72'>

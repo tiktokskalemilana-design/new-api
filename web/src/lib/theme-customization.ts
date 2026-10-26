@@ -25,13 +25,57 @@ For commercial licensing, please contact support@quantumnous.com
 
 export const THEME_PRESETS = [
   {
-    // Obsidian is the single shipped palette: it IS the `:root`/`.dark`
-    // default in theme.css. ikh-style monochrome — pure zinc dark canvas,
-    // white-on-black primary, color only in semantic states. Swatches
-    // preview the near-black canvas → white accent pairing.
     value: 'default',
-    name: 'Obsidian',
-    swatches: ['oklch(0.145 0 0)', 'oklch(0.985 0 0)'],
+    name: 'Default',
+    swatches: ['#0e0d12', '#fafafa'],
+  },
+  {
+    // Inspired by Anthropic's official brand language: warm cream canvas
+    // (#faf9f5) paired with clay/coral (#d97757) as the single accent.
+    // Swatches preview the canvas → accent gradient that defines the system.
+    value: 'anthropic',
+    name: 'Anthropic',
+    swatches: ['oklch(0.984 0.005 95)', 'oklch(0.685 0.142 38)'],
+  },
+  {
+    value: 'simple-large',
+    name: 'Simple Large-font',
+    swatches: ['oklch(0.15 0 0)', 'oklch(0.99 0 0)'],
+  },
+  {
+    value: 'underground',
+    name: 'Underground',
+    swatches: ['oklch(0.5315 0.0694 156.19)', 'oklch(0.5748 0.0862 336.52)'],
+  },
+  {
+    value: 'rose-garden',
+    name: 'Rose Garden',
+    swatches: ['oklch(0.5827 0.2418 12.23)', 'oklch(0.8131 0.1129 5.67)'],
+  },
+  {
+    value: 'lake-view',
+    name: 'Lake View',
+    swatches: ['oklch(0.765 0.177 163.22)', 'oklch(0.551 0.0899 200.52)'],
+  },
+  {
+    value: 'sunset-glow',
+    name: 'Sunset Glow',
+    swatches: ['oklch(0.5591 0.1882 25.33)', 'oklch(0.7938 0.1248 42.42)'],
+  },
+  {
+    value: 'forest-whisper',
+    name: 'Forest Whisper',
+    swatches: ['oklch(0.5276 0.1072 182.22)', 'oklch(0.5236 0.0505 250.18)'],
+  },
+  {
+    value: 'ocean-breeze',
+    name: 'Ocean Breeze',
+    swatches: ['oklch(0.5461 0.2152 262.88)', 'oklch(0.5854 0.2041 277.12)'],
+  },
+  {
+    value: 'lavender-dream',
+    name: 'Lavender Dream',
+    swatches: ['oklch(0.5709 0.1808 306.89)', 'oklch(0.811 0.0589 201.14)'],
   },
 ] as const
 
@@ -43,15 +87,11 @@ export type ContentLayout = 'full' | 'centered'
 /**
  * Font axis for the theme.
  *
- * - `default` — resolve at runtime from the active preset
- *   (see `PRESET_DEFAULT_FONT`). The shipped `default` and `anthropic`
- *   presets resolve to serif; other named color presets fall back to
- *   sans unless they list a different choice. Mirrors how
- *   `radius: 'default'` defers to a per-preset hint.
- * - `sans` — humanist sans (Public Sans), the project's UI fallback.
- * - `serif` — editorial serif (Lora + CJK fallbacks), the project's
- *   "soul" typography. Inherits across the whole UI; monospace contexts
- *   keep their own family via Tailwind preflight and `.font-mono`.
+ * - `default` — use the browser's sans-serif unless the active preset
+ *   specifies its own font (Anthropic uses serif).
+ * - `sans` — explicitly use Public Sans.
+ * - `serif` — use Lora + CJK fallbacks. Monospace contexts keep their
+ *   own family via Tailwind preflight and `.font-mono`.
  */
 export type ThemeFont = 'default' | 'sans' | 'serif'
 
@@ -61,7 +101,7 @@ export type ThemeFont = 'default' | 'sans' | 'serif'
  * needs simple attribute selectors (no `:not()` gymnastics, no per-preset
  * font branches).
  */
-export type ResolvedThemeFont = Exclude<ThemeFont, 'default'>
+export type ResolvedThemeFont = 'system' | Exclude<ThemeFont, 'default'>
 
 export type ThemeCustomization = {
   preset: ThemePreset
@@ -114,17 +154,13 @@ export const CONTENT_LAYOUT_VALUES: ReadonlySet<ContentLayout> = new Set([
  * Preset → default font mapping. Used by the provider to resolve the user's
  * `font: 'default'` preference against the active preset.
  *
- * Co-located with the preset registry so a preset's signature typography
- * is declared in one place. Presets not listed here fall back to the
- * `resolveThemeFont` default of `sans`. The shipped `default` preset
- * opts into serif so the editorial Lora voice is the out-of-the-box
- * experience; vivid color presets stay on the humanist sans so their
- * accents read clearly without competing with the body type.
+ * Presets without a font override use the browser's sans-serif. Public
+ * Sans is reserved for an explicit user choice.
  */
 export const PRESET_DEFAULT_FONT: Partial<
   Record<ThemePreset, ResolvedThemeFont>
 > = {
-  default: 'sans',
+  anthropic: 'serif',
 }
 
 /**
@@ -138,7 +174,7 @@ export function resolveThemeFont(
   preset: ThemePreset
 ): ResolvedThemeFont {
   if (font === 'default') {
-    return PRESET_DEFAULT_FONT[preset] ?? 'sans'
+    return PRESET_DEFAULT_FONT[preset] ?? 'system'
   }
   return font
 }

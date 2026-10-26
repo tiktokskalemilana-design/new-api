@@ -41,7 +41,7 @@ export function FAQPanel() {
     <PanelWrapper
       title={
         <span className='flex items-center gap-2'>
-          <IconBadge tone='chart-4' size='sm'>
+          <IconBadge tone='neutral' size='sm'>
             <HelpCircle />
           </IconBadge>
           {t('FAQ')}
@@ -51,7 +51,7 @@ export function FAQPanel() {
       loading={loading}
       empty={!list.length}
       emptyMessage={t('No FAQ entries available')}
-      height='h-80'
+      height='h-24'
       contentClassName='p-0'
     >
       <ScrollArea className='h-80'>

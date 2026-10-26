@@ -50,17 +50,19 @@ export const ModelCardGrid = memo(function ModelCardGrid(
   const totalPages = Math.max(1, Math.ceil(props.models.length / pageSize))
   const currentPage = Math.min(page, totalPages)
 
-  const perfQuery = useQuery({
-    queryKey: ['perf-metrics-summary', 24],
-    queryFn: async () => requireServerSuccess(await getPerfMetricsSummary(24)),
-    staleTime: 60 * 1000,
-    retry: false,
-  })
-
   const pagedModels = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return props.models.slice(start, start + pageSize)
   }, [currentPage, pageSize, props.models])
+  const recentModels = pagedModels.map((model) => model.model_name || '')
+  const perfQuery = useQuery({
+    queryKey: ['perf-metrics-summary', 24, recentModels],
+    queryFn: async () =>
+      requireServerSuccess(await getPerfMetricsSummary(24, recentModels)),
+    enabled: recentModels.length > 0,
+    staleTime: 60 * 1000,
+    retry: false,
+  })
 
   const perfMap = useMemo(() => {
     const map = new Map<string, ModelPerfBadgeData>()
@@ -69,6 +71,17 @@ export const ModelCardGrid = memo(function ModelCardGrid(
         ...model,
         window_start: perfQuery.data?.data.window_start,
         window_end: perfQuery.data?.data.window_end,
+      })
+    }
+    for (const [name, series] of Object.entries(
+      perfQuery.data?.data?.recent_success_series ?? {}
+    )) {
+      map.set(name, {
+        avg_latency_ms: Number.NaN,
+        avg_tps: Number.NaN,
+        success_rate: Number.NaN,
+        ...map.get(name),
+        recent_success_series: series,
       })
     }
     return map
@@ -97,8 +110,8 @@ export const ModelCardGrid = memo(function ModelCardGrid(
       </div>
 
       {totalPages > 1 && (
-        <div className='text-muted-foreground flex flex-col items-center justify-between gap-3 border-t px-4 py-3 text-sm sm:flex-row'>
-          <p className='text-muted-foreground'>
+        <div className='text-muted-foreground border-border flex flex-col items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-sm sm:flex-row dark:border-[#1f1f1f] dark:bg-[#0d0d0d] dark:text-[#bdbcc1]'>
+          <p className='text-muted-foreground dark:text-[#bdbcc1]'>
             {t('Page {{current}} of {{total}}', {
               current: currentPage,
               total: totalPages,
@@ -111,7 +124,7 @@ export const ModelCardGrid = memo(function ModelCardGrid(
               size='sm'
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               disabled={currentPage <= 1}
-              className='gap-1.5'
+              className='gap-1.5 shadow-none dark:border-[#1f1f1f] dark:bg-[#0b0b0b] dark:text-[#c5c4c9] dark:hover:bg-[#1f1f1f] dark:hover:text-white'
             >
               <ChevronLeft className='size-4' />
               {t('Previous page')}
@@ -124,7 +137,7 @@ export const ModelCardGrid = memo(function ModelCardGrid(
                 setPage((current) => Math.min(totalPages, current + 1))
               }
               disabled={currentPage >= totalPages}
-              className='gap-1.5'
+              className='gap-1.5 shadow-none dark:border-[#1f1f1f] dark:bg-[#0b0b0b] dark:text-[#c5c4c9] dark:hover:bg-[#1f1f1f] dark:hover:text-white'
             >
               {t('Next page')}
               <ChevronRight className='size-4' />

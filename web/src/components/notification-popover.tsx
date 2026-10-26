@@ -309,7 +309,10 @@ export function NotificationPopover({
           <Button
             variant='ghost'
             size='icon'
-            className={cn('relative size-9', className)}
+            className={cn(
+              'relative size-10 rounded-xl border border-transparent sm:size-9 dark:border-[#141318] dark:bg-[#0c0b10]',
+              className
+            )}
             aria-label={t('Notifications')}
           />
         }
@@ -318,7 +321,7 @@ export function NotificationPopover({
         {unreadCount > 0 ? (
           <Badge
             variant='destructive'
-            className='absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center px-1 text-[10px] font-semibold tabular-nums'
+            className='absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center px-1 text-[10px] font-semibold tabular-nums dark:bg-[#ff4d4f] dark:text-white'
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </Badge>

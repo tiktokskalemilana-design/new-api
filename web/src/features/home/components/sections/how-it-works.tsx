@@ -50,35 +50,38 @@ export function HowItWorks() {
   ]
 
   return (
-    <section className='border-border/40 relative z-10 border-t px-6 py-24 md:py-32'>
+    <section className='border-border/40 relative z-10 border-t px-4 py-16 md:px-6 md:py-32 dark:border-[#242328]'>
       <div className='mx-auto max-w-6xl'>
-        <AnimateInView className='mb-16 text-center md:mb-20'>
-          <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
+        <AnimateInView className='mb-10 text-left md:mb-14'>
+          <p className='text-muted-foreground mb-3 flex items-center gap-3 font-mono text-[11px] tracking-[0.15em] uppercase dark:text-[#616065]'>
+            <span className='dark:text-[#5e5d62]'>/01</span>
             {t('How It Works')}
           </p>
-          <h2 className='text-2xl font-bold tracking-tight md:text-3xl'>
+          <h2 className='text-[22px] font-bold tracking-tight md:text-3xl dark:text-white'>
             {t('Three steps to get started')}
           </h2>
         </AnimateInView>
 
-        <div className='grid gap-8 md:grid-cols-3 md:gap-12'>
+        <div className='grid gap-4 md:grid-cols-3 md:gap-6'>
           {steps.map((step, i) => (
             <AnimateInView
               key={step.num}
               delay={i * 150}
               animation='fade-up'
-              className='relative flex flex-col items-center text-center'
+              className='border-border/60 bg-background relative flex flex-col items-start rounded-[18px] border p-4 text-left shadow-none dark:border-[#1f1f1f] dark:bg-[#0d0d0d]'
             >
-              <div className='relative mb-6'>
-                <div className='text-muted-foreground border-border/50 bg-muted/30 flex size-16 items-center justify-center rounded-2xl border transition-colors'>
+              <div className='mb-8 flex w-full items-center justify-between'>
+                <div className='text-muted-foreground border-border/50 bg-muted/30 flex size-10 items-center justify-center rounded-xl border transition-colors dark:border-[#1f1f1f] dark:bg-transparent dark:text-[#c0bfc4]'>
                   {step.icon}
                 </div>
-                <div className='bg-foreground text-background absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full text-xs font-bold'>
-                  {step.num}
-                </div>
+                <span className='text-muted-foreground font-mono text-[11px] tracking-[0.15em] dark:text-[#616065]'>
+                  {step.num.padStart(2, '0')}
+                </span>
               </div>
-              <h3 className='mb-2 text-base font-semibold'>{step.title}</h3>
-              <p className='text-muted-foreground max-w-[240px] text-sm leading-relaxed'>
+              <h3 className='mb-2 text-base font-semibold dark:text-white'>
+                {step.title}
+              </h3>
+              <p className='text-muted-foreground text-sm leading-relaxed dark:text-[#c0bfc4]'>
                 {step.desc}
               </p>
             </AnimateInView>

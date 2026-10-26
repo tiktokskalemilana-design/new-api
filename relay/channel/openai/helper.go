@@ -261,13 +261,3 @@ func HandleFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, lastStream
 		}
 	}
 }
-
-func sendResponsesStreamData(c *gin.Context, streamResponse dto.ResponsesStreamResponse, data string) {
-	if data == "" {
-		return
-	}
-	if sanitized, isErr := helper.SanitizeUpstreamErrorPayload(common.StringToByteSlice(data)); isErr {
-		data = string(sanitized)
-	}
-	_ = helper.ResponseChunkData(c, streamResponse, data)
-}
